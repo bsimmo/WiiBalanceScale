@@ -45,13 +45,13 @@ namespace WiiBalanceScale
         static ConnectionManager cm = null;
         static Timer BoardTimer = null;
         static float ZeroedWeight = 0;
-        static float[] History = new float[100];
+        static readonly float[] History = new float[100];
         static int HistoryBest = 1, HistoryCursor = -1;
         static string StarFull = "", StarEmpty = "";
-        static EUnit SelectedUnit = EUnit.Kg;
+        static EUnit SelectedUnit = EUnit.Stone;
         enum EUnit { Kg, Lb, Stone };
 
-        static void Main(string[] args)
+        static void Main(string[] _1)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -61,7 +61,8 @@ namespace WiiBalanceScale
             StarEmpty = f.lblQuality.Text.Substring(4, 1);
             f.lblWeight.Text = "";
             f.lblQuality.Text = "";
-            f.lblUnit.Text = "";
+            f.lblUnit1.Text = "";
+            f.lblUnit2.Text = "";
             f.btnReset.Click += (object sender, System.EventArgs e) =>
             {
                 float HistorySum = 0.0f;
@@ -69,23 +70,25 @@ namespace WiiBalanceScale
                     HistorySum += History[(HistoryCursor + History.Length - i) % History.Length];
                 ZeroedWeight = HistorySum / HistoryBest;
             };
-            System.EventHandler unitRadioButton_Change = (object sender, EventArgs e) =>
+            void unitRadioButton_Change(object sender, EventArgs e)
             {
                 if (!(sender as RadioButton).Checked) return;
-                if      (sender == f.unitSelectorKg)    SelectedUnit = EUnit.Kg;
-                else if (sender == f.unitSelectorLb)    SelectedUnit = EUnit.Lb;
+                if (sender == f.unitSelectorKg) SelectedUnit = EUnit.Kg;
+                else if (sender == f.unitSelectorLb) SelectedUnit = EUnit.Lb;
                 else if (sender == f.unitSelectorStone) SelectedUnit = EUnit.Stone;
-            };
+            }
             f.unitSelectorKg.CheckedChanged += unitRadioButton_Change;
             f.unitSelectorLb.CheckedChanged += unitRadioButton_Change;
             f.unitSelectorStone.CheckedChanged += unitRadioButton_Change;
-            f.unitSelectorKg.Checked = true;
+            f.unitSelectorStone.Checked = true;
 
             ConnectBalanceBoard(false);
             if (f == null) return; //connecting required application restart, end this process here
 
-            BoardTimer = new System.Windows.Forms.Timer();
-            BoardTimer.Interval = 50;
+            BoardTimer = new Timer
+            {
+                Interval = 50
+            };
             BoardTimer.Tick += new System.EventHandler(BoardTimer_Tick);
             BoardTimer.Start();
 
@@ -116,7 +119,8 @@ namespace WiiBalanceScale
             f.unitSelector.Visible = true;
             f.lblWeight.Text = "...";
             f.lblQuality.Text = "";
-            f.lblUnit.Text = "";
+            f.lblUnit1.Text = "";
+            f.lblUnit2.Text = "";
             f.Refresh();
 
             ZeroedWeight = 0.0f;
@@ -142,7 +146,7 @@ namespace WiiBalanceScale
                 if (cm.IsRunning())
                 {
                     f.lblWeight.Text = "WAIT...";
-                    f.lblQuality.Text = (f.lblQuality.Text.Length >= 5 ? "" : f.lblQuality.Text) + "6";
+                    f.lblQuality.Text = (f.lblQuality.Text.Length >= 5 ? "" : f.lblQuality.Text) + "◯";
                     return;
                 }
                 if (cm.HadError())
@@ -186,15 +190,19 @@ namespace WiiBalanceScale
             if (SelectedUnit != EUnit.Kg) weight *= 2.20462262f;
             if (SelectedUnit == EUnit.Stone)
             {
-                string sign = weight < 0.0f ? "-" : "";
-                weight = Math.Abs(weight);
-                f.lblWeight.Text = sign + Math.Floor(weight / 14.0f).ToString("00") + ":" + (weight % 14.0f).ToString("00.0");
-                f.lblUnit.Text = "st:lbs";
+                // string sign = weight < 0.0f ? "-" : " ";
+                weight = weight < 0.0f ? 0 : Math.Abs(weight);
+                double stone = Math.Floor(weight / 14.0f);
+                double pound = (weight % 14.0f);
+                f.lblWeight.Text = $"{stone,2:#0} {pound,2:#0}";
+                f.lblUnit1.Text = "lb";
+                f.lblUnit2.Text = "st";
             }
             else
             {
-                f.lblWeight.Text = weight <= -100.0f ? weight.ToString("00.00") : weight.ToString("00.000");
-                f.lblUnit.Text = (SelectedUnit != EUnit.Kg ? "lbs" : "kg");
+                f.lblWeight.Text = weight <= -100.0f ? weight.ToString("3:#0.00") : weight.ToString("#0.00");
+                f.lblUnit1.Text = (SelectedUnit != EUnit.Kg ? "lbs" : "kg");
+                f.lblUnit2.Text = "";
             }
 
             f.lblQuality.Text = "";
